@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using OpenIddictClientCredentialServer;
 using OpenIddictClientCredentialServer.Data;
 using Quartz;
 
@@ -53,12 +54,17 @@ builder.Services.AddOpenIddict()
 
         // Register the signing and encryption credentials
         options.AddDevelopmentEncryptionCertificate()
-                .AddDevelopmentSigningCertificate();
+                .AddDevelopmentSigningCertificate()
+                .DisableAccessTokenEncryption();
 
         // Register the ASP.NET Core host and configure the ASP.NET Core-specific options
         options.UseAspNetCore()
                 .EnableTokenEndpointPassthrough();   
     });
+
+// Register the worker responsible for seeding the database.
+// Note: in a real world application, this step should be part of a setup script.
+builder.Services.AddHostedService<Worker>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
