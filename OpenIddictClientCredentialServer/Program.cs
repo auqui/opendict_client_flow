@@ -1,17 +1,64 @@
 using Microsoft.EntityFrameworkCore;
 using OpenIddictClientCredentialServer.Data;
+using Quartz;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Add EF services
-var connString = builder.Configuration.GetConnectionString("DefaultConection");
+var connString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
+    // Configure the context to use sqlite
     options.UseSqlite(connString);
 
+    // Register the entity sets needed by OpenIddict.
+    // Note: use the generic overload if you need
+    // to replace the default OpenIddict entities.
     options.UseOpenIddict();
 });
+
+// OpenIddict offers native integration with Quartz.NET to perform scheduled tasks
+// (like pruning orphaned authorizations/tokens from the database) at regular intervals.
+builder.Services.AddQuartz(options => 
+{
+    options.UseSimpleTypeLoader();
+    options.UseInMemoryStore();
+});
+
+// Register the Quartz.NET service and configure it to block shutdown until jobs are complete.
+builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+builder.Services.AddOpenIddict()
+    // Register the OpenIddict core components. 
+    .AddCore(options => 
+    {
+        // Configure OpenIddict to use EntityFramework Core Stores and models.
+        // Note: call ReplaceDefaultEntities() to replace the default OpenIddict entities.
+        options.UseEntityFrameworkCore()
+                .UseDbContext<ApplicationDbContext>();
+
+        // Enable Quartz.NET integration
+        options.UseQuartz();            
+    })
+
+    // Register the OpenIddict server components.
+    .AddServer(options => 
+    {
+        // Enable the token endpoint
+        options.SetTokenEndpointUris("connect/token");
+ 
+        // Enable the client credentials flow.
+        options.AllowClientCredentialsFlow();
+
+        // Register the signing and encryption credentials
+        options.AddDevelopmentEncryptionCertificate()
+                .AddDevelopmentSigningCertificate();
+
+        // Register the ASP.NET Core host and configure the ASP.NET Core-specific options
+        options.UseAspNetCore()
+                .EnableTokenEndpointPassthrough();   
+    });
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
