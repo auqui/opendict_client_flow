@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using OpenIddictClientCredentialServer;
 using OpenIddictClientCredentialServer.Data;
 using Quartz;
@@ -51,6 +52,14 @@ builder.Services.AddOpenIddict()
  
         // Enable the client credentials flow.
         options.AllowClientCredentialsFlow();
+
+        // Register the encryption credentials. This sample uses a symmetric
+        // encryption key that is shared between the server and the API project.
+        //
+        // Note: in a real world application, this encryption key should be
+        // stored in a safe place (e.g in Azure KeyVault, stored as a secret).
+        options.AddEncryptionKey(new SymmetricSecurityKey(
+            Convert.FromBase64String("DRjd/GnduI3Efzen9V9BvbNUfc/VKgXltV7Kbk9sMkY=")));
 
         // Register the signing and encryption credentials
         options.AddDevelopmentEncryptionCertificate()
